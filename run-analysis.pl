@@ -47,16 +47,21 @@ EOF
   exit -1
 }
 
-my ($vcf_fname, $no_phasing, $assume_reference) = ("", 0, 0);
+my ($vcf_fname, $no_phasing, $assume_reference, $run_script) = ("", 0, 0, 0);
 my %args;
 $args{'--vcf'} = [ \$vcf_fname,          1 ];
 $args{'--no-phasing'} = [ \$no_phasing,  0 ];
 $args{'--assume-reference'} = [ \$assume_reference, 0 ];
+$args{'--run'} = [ \$run_script, 0 ];
 cmdline_args::get_options(\%args, \@ARGV);
 
-$ENV{PATH} = "$ENV{ANCESTRY_ROOT}/bin:$ENV{PATH}";
-$ENV{BCFTOOLS_PLUGINS} = "$ENV{ANCESTRY_ROOT}/bin/bcftools_plugins";
-  
+unless ($run_script || defined("$ENV{RFMIX_REFERENCE}")) {
+  exec(". config && $0 " . join(" ",@ARGV,"--run"));
+}
+
+#$ENV{PATH} = "$ENV{ANCESTRY_ROOT}/bin:$ENV{PATH}";
+#$ENV{BCFTOOLS_PLUGINS} = "$ENV{ANCESTRY_ROOT}/bin/bcftools_plugins";
+ 
 if ($vcf_fname eq "") {
   system($0);
   print STDERR "ERROR: Specify VCF or BCF input file with --vcf <filename> option\n\n";
