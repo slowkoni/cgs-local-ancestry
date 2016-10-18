@@ -1,0 +1,29 @@
+
+if [ -z "$ANCESTRY_ROOT" ]; then
+   export ANCESTRY_ROOT=`pwd`
+fi
+export PATH=${PATH}:$ANCESTRY_ROOT/bin
+if [ -z "$BCFTOOLS_PLUGINS" ]; then
+   export BCFTOOLS_PLUGINS=$ANCESTRY_ROOT/bin/bcftools_plugins
+fi
+
+if [ -z "$S3_REFERENCE_FILE" ]; then
+   export S3_REFERENCE_FILE=s3://rfmix-reference-data/1KG.hs37d5.reference.tar
+fi
+
+if [ -z "$PHASING_REFERENCE" ]; then
+   export PHASING_REFERENCE=phasing-reference/1KG.20ac.all.bcf.gz
+fi
+if [ -z "$PHASING_GENETIC_MAP" ]; then
+   export PHASING_GENETIC_MAP=phasing-reference/genetic_map_hg19_withX.txt.gz
+fi
+
+if [ -z "$RFMIX_REFERENCE" ]; then
+   export RFMIX_REFERENCE=rfmix-reference/1KG.20ac.all.bcf.gz
+fi
+if [ -z "$RFMIX_REFERENCE_MAP" ]; then
+   export RFMIX_REFERENCE_MAP=rfmix-reference/1KG-K5-reference-sample-map.tsv
+fi
+if [ -z "$RFMIX_GENETIC_MAP" ]; then
+   export RFMIX_GENETIC_MAP=rfmix-reference/hapmap-phase2-genetic-map.tsv
+fi
