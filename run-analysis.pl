@@ -38,10 +38,12 @@ if (!$ARGV[0] || $ARGV[0] eq "help") {
    Entire 1KG panel of samples is used a reference haplotypes
 
    Phasing is performed by Eagle v2.3 author Po-Ru Loh, (C) 2015-2016 Harvard University
-   distributed under the GNU GPL v3 open source license
+   distributed under the GNU GPL v3 open source license.
 
    local ancestry analysis is performed by RFMIX v2.X author Mark Koni Wright,
-   (C) 2015-2016 Mark Wright, Stanford University.
+   (C) 2015-2016 Mark Wright, Stanford University. RFMIX and this software may be used
+   royalty free for academic and government research use. Commericial use of RFMIX
+   and this software package must be licensed for these uses from Stanford University.
    
 EOF
   exit -1
@@ -59,6 +61,7 @@ unless ($run_script || defined("$ENV{RFMIX_REFERENCE}")) {
   exec(". config && $0 " . join(" ",@ARGV,"--run"));
 }
 
+chdir($ENV{ANCESTRY_ROOT}) if $ENV{ANCESTRY_ROOT};
 #$ENV{PATH} = "$ENV{ANCESTRY_ROOT}/bin:$ENV{PATH}";
 #$ENV{BCFTOOLS_PLUGINS} = "$ENV{ANCESTRY_ROOT}/bin/bcftools_plugins";
  
@@ -69,8 +72,10 @@ if ($vcf_fname eq "") {
 }
 my $output_basename = $vcf_fname;
 $output_basename =~ s/\.[vb]cf(\.gz|\.bgz|\.bz2|)$//;
-my $tmp_dname = "tmp.$$";
+my $tmp_dname = "$output_basename" . sprintf(".%08X",rand(0xFFFFFFFF));
 echo_exec("mkdir -p $tmp_dname");
+echo_exec("touch $output_basename.test");
+echo_exec("id");
 echo_exec("rm -f $output_basename.rfmix.msp.tsv");
 echo_exec("rm -f $output_basename.rfmix.fb.tsv");
 echo_exec("rm -f $output_basename.rfmix.Q");
@@ -112,10 +117,16 @@ for(my $chm=1; $chm <= 22; $chm++) {
   echo_exec("cat $tmp_dname/tmp.rfmix.$chm.fb.tsv >> $output_basename.rfmix.fb.tsv");
   echo_exec("cat $tmp_dname/tmp.rfmix.$chm.rfmix.Q >> $output_basename.rfmix.Q");
 }
+echo_exec("rm -rf $tmp_dname");
 
 sub echo_exec {
   my @args = @_;
 
   print join(" ",@args),"\n";
-  return system(@args);
+  my $rval = system(@args);
+  if ($rval & 127) {
+    my $signal = $rval & 127;
+    print STDERR "\n\nTerminating analysis due to signal $signal\n";
+    exit $signal
+  }
 }

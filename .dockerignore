@@ -2,3 +2,6 @@ tmp
 tmp.*
 *.o
 *~
+.git
+.dockerignore
+.gitignore
