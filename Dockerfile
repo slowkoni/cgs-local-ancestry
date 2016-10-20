@@ -12,13 +12,11 @@ RUN apt-get install -y gcc python python-all python-all-dev perl perl-modules aw
 # Need to set password for a user or add a key file though
 EXPOSE 22
 
-ARG UID=1001
+ARG UID=1000
 RUN useradd -u $UID --home /home/ancestry --user-group --create-home --shell /bin/bash ancestry
 #USER ancestry
 ADD . /home/ancestry
 ADD .s3cfg /home/ancestry
-RUN ls -la /home/ancestry
-RUN id
 
 # If we don't create the mount point from the docker file, the mount
 # isn't writable from within the container
