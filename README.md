@@ -13,7 +13,7 @@ Docker version 1.12 or higher
 Create a directory called shared (or whatever you want and adjust below)
 Copy your BCF or VCF there. For example below, we'll call it my-genome.bcf.gz
 
-`docker run -t -i -v \`pwd\`/shared:/home/ancestry/shared cgs-local-ancestry --vcf shared/my-genome.bcf.gz`
+`docker run -t -i -v $PWD/shared:/home/ancestry/shared cgs-local-ancestry --vcf shared/my-genome.bcf.gz`
 
 If your VCF was called as a single sample and thus homozygous reference genotypes are at most known variable sites in the genome are not present in the file, but sequencing coverage is high, add the argument --assume-reference to insert homozygous reference genotype calls where needed.
 
