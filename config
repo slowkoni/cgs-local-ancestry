@@ -4,7 +4,7 @@ if [ -z "$ANCESTRY_ROOT" ]; then
 fi
 export PATH=${PATH}:$ANCESTRY_ROOT/bin
 if [ -z "$BCFTOOLS_PLUGINS" ]; then
-   export BCFTOOLS_PLUGINS=$ANCESTRY_ROOT/bin/bcftools_plugins
+   export BCFTOOLS_PLUGINS=$ANCESTRY_ROOT/bin/bcftools-plugins
 fi
 
 if [ -z "$S3_REFERENCE_FILE" ]; then

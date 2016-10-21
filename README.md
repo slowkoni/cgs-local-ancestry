@@ -8,6 +8,10 @@ Docker version 1.12 or higher
 
 `docker build --build-arg UID=$UID -t cgs-local-ancestry cgs-local-ancestry`
 
+This command may take a few minutes because the build process will download the phasing and
+local ancestry reference data from Amazon S3. This is several GB of data and too large to
+store in a git repo.
+
 ### To run an unphased VCF or BCF file through the pipeline and receive RFMIX results
 
 Create a directory called shared (or whatever you want and adjust below)

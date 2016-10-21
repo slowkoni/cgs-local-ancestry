@@ -9,6 +9,7 @@ if (!$ARGV[0] || $ARGV[0] eq "help") {
   analysis on any supplied VCF/BCF file.
 
   Usage: --vcf <input VCF/BCF file> [ --no-phasing ] [ --assume-reference ]   
+         [ --fill-missing ]
 
   Performs phasing and local ancestry analysis using 1000 genomes phase 3
   genotypes as reference (built in), reduced to bi-allelic SNPs only which
@@ -27,6 +28,12 @@ if (!$ARGV[0] || $ARGV[0] eq "help") {
 		      
 		      If this option is not specified, only SNPs found in the
 		      intersection of the input and the reference data will be used.
+    
+   --fill-missing: This will substitute the phased reference homozygote genotype for
+                   sites with missing data and automatically turn on --assume-reference.
+                   Use this option if your input VCF has many samples that were merged 
+                   together from single sample VCFs, and genome sequencing coverage is
+                   high for all samples.
 
    For local ancestry analysis:
    Built-in reference panel groups the 1KG data into 5 reference populations: European,
@@ -49,12 +56,15 @@ EOF
   exit -1
 }
 
-my ($vcf_fname, $no_phasing, $assume_reference, $run_script) = ("", 0, 0, 0);
+my ($vcf_fname, $no_phasing, $assume_reference, $fill_missing, $run_script) = ("", 0, 0, 0, 0);
+my $debug = 0;
 my %args;
-$args{'--vcf'} = [ \$vcf_fname,          1 ];
-$args{'--no-phasing'} = [ \$no_phasing,  0 ];
-$args{'--assume-reference'} = [ \$assume_reference, 0 ];
-$args{'--run'} = [ \$run_script, 0 ];
+$args{'--vcf'}              = [ \$vcf_fname,          1 ];
+$args{'--no-phasing'}       = [ \$no_phasing,         0 ];
+$args{'--assume-reference'} = [ \$assume_reference,   0 ];
+$args{'--fill-missing'}     = [ \$fill_missing,       0 ];
+$args{'--debug'}            = [ \$debug,              0 ];
+$args{'--run'}              = [ \$run_script,         0 ];
 cmdline_args::get_options(\%args, \@ARGV);
 
 unless ($run_script || defined("$ENV{RFMIX_REFERENCE}")) {
@@ -71,7 +81,7 @@ if ($vcf_fname eq "") {
   exit(-1);
 }
 my $output_basename = $vcf_fname;
-$output_basename =~ s/\.[vb]cf(\.gz|\.bgz|\.bz2|)$//;
+$output_basename =~ s/\.[vb]cf(\.gz|\.bgz|\.bz2|\.xz|)$//;
 my $tmp_dname = "$output_basename" . sprintf(".%08X",rand(0xFFFFFFFF));
 echo_exec("mkdir -p $tmp_dname");
 echo_exec("touch $output_basename.test");
@@ -86,15 +96,24 @@ if (! open(F, "<$vcf_fname") ) {
 }
 close F;
 
+$assume_reference = 1 if $fill_missing;
 if ($assume_reference) {
-  if (echo_exec("/usr/bin/time --format='%e sec\\t%E\\t%M KB' insert-reference-homozygote.py $vcf_fname $ENV{RFMIX_REFERENCE} | bcftools view --output-type b > $tmp_dname/tmp.filled.bcf.gz")) {
+  my $fill_missing_cmd = "";
+  if ($fill_missing) {
+    $fill_missing_cmd = "set-reference-homozygote.py | bcftools view --output-type b";
+  } else {
+    $fill_missing_cmd = "bcftools view --output-type b";
+  }
+  
+  if (echo_exec("/usr/bin/time --format='%e sec\\t%E\\t%M KB' insert-reference-homozygote.py $vcf_fname $ENV{RFMIX_REFERENCE} | $fill_missing_cmd > $tmp_dname/tmp.filled.bcf.gz")) {
     print STDERR "\nFailed to insert homozygous reference genotypes at ancestry reference sites.\n\n";
     exit -1;
   }
+  
   $vcf_fname = "$tmp_dname/tmp.filled.bcf.gz";
 }
 
-for(my $chm=1; $chm <= 22; $chm++) {
+for(my $chm=$debug?22:1; $chm <= 22; $chm++) {
   echo_exec("bcftools index $vcf_fname");
 
   my $current_vcf_fname = "$tmp_dname/tmp.$chm.bcf.gz";
@@ -122,8 +141,9 @@ echo_exec("rm -rf $tmp_dname");
 sub echo_exec {
   my @args = @_;
 
-  print join(" ",@args),"\n";
-  my $rval = system(@args);
+  my $cmd = join(" ",@args);
+  print "$cmd\n";
+  my $rval = system($cmd);
   if ($rval & 127) {
     my $signal = $rval & 127;
     print STDERR "\n\nTerminating analysis due to signal $signal\n";
