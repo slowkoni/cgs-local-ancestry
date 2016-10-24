@@ -1,5 +1,5 @@
 
-This package is available free of charge for academic and research uses only. Permission is granted to modify and redistribute this package by academic and research users and developers only. For a separate license, please contact Mark Wright <mhwright@stanford.edu>.
+This package is available free of charge for academic and research uses only. Permission is granted to modify and redistribute this package by academic and research users/developers only. For a separate license for commercial uses, please contact Stanford Office of Technology Licensing and request information on licensing RFMIX for commercial use. http://otl.stanford.edu/
 
 This package makes use of software which is made available under different licenses. For the specific licenses of these software packages, please see their respective websites.
 
@@ -7,11 +7,12 @@ bcftools
 https://samtools.github.io/bcftools/
 Used here under the MIT/Expat licensing option.
 
-Eagle
+Eagle v2.3
 https://github.com/poruloh/Eagle
 https://data.broadinstitute.org/alkesgroup/Eagle/
 Used under GNU General Public License. See github site for source code.
 
-RFMIX
+RFMIX v2.X
 https://github.com/slowkoni/rfmix
-Available for academic and research use only. Please contact Stanford University Office of Technology Licensing for a separate licensing agreement. Inclusion of RFMIX source or executible(s) within this package does not constitute a license to use RFMIX except as provisioned for academic and research users, regardless of license
+Available for academic and research use only. Please contact Stanford University Office of Technology Licensing for a separate licensing agreement. Inclusion of RFMIX source or executible(s) within this package does not constitute a license to use RFMIX except as provisioned for academic and research users.
+
