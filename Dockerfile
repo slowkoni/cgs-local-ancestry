@@ -13,7 +13,7 @@ RUN apt-get install -y gcc python python-all python-all-dev perl perl-modules aw
 EXPOSE 22
 
 ARG UID=1000
-RUN useradd -u $UID --home /home/ancestry --user-group --create-home --shell /bin/bash ancestry
+RUN useradd --non-unique -u $UID --home /home/ancestry --user-group --create-home --shell /bin/bash ancestry
 #USER ancestry
 ADD . /home/ancestry
 ADD .s3cfg /home/ancestry
@@ -26,7 +26,7 @@ RUN chown -R ancestry:ancestry /home/ancestry
 
 # Get the reference data which we will manage externally
 USER ancestry
-RUN s3cmd get s3://rfmix-reference-data/1KG.hs37d5.reference.tar - | tar -C /home/ancestry -xvf -
+RUN s3cmd --no-check-md5 get s3://rfmix-reference-data/1KG.hs37d5.reference.tar - | tar -C /home/ancestry -xvf -
 
 #
 ENTRYPOINT ["/home/ancestry/start.sh"]
