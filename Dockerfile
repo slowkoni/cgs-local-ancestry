@@ -2,7 +2,7 @@
 FROM ubuntu:14.04.5
 
 MAINTAINER Mark Koni Wright <mhwright@stanford.edu>
-LABEL version="1.02"
+LABEL version="1.03"
 
 # Update base distribution and install needed packages
 RUN apt-get update -y && apt-get upgrade -y
@@ -14,7 +14,6 @@ EXPOSE 22
 
 ARG UID=1000
 RUN useradd --non-unique -u $UID --home /home/ancestry --user-group --create-home --shell /bin/bash ancestry
-#USER ancestry
 ADD . /home/ancestry
 ADD .s3cfg /home/ancestry
 

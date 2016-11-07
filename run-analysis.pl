@@ -100,9 +100,9 @@ $assume_reference = 1 if $fill_missing;
 if ($assume_reference) {
   my $fill_missing_cmd = "";
   if ($fill_missing) {
-    $fill_missing_cmd = "set-reference-homozygote.py | bcftools view --output-type b";
+    $fill_missing_cmd = "set-reference-homozygote.py | bcftools view --output-type b --threads 32";
   } else {
-    $fill_missing_cmd = "bcftools view --output-type b";
+    $fill_missing_cmd = "bcftools view --output-type b --threads 32";
   }
   
   if (echo_exec("/usr/bin/time --format='%e sec\\t%E\\t%M KB' insert-reference-homozygote.py $vcf_fname $ENV{RFMIX_REFERENCE} | $fill_missing_cmd > $tmp_dname/tmp.filled.bcf.gz")) {
@@ -113,11 +113,14 @@ if ($assume_reference) {
   $vcf_fname = "$tmp_dname/tmp.filled.bcf.gz";
 }
 
-for(my $chm=$debug?22:1; $chm <= 22; $chm++) {
+if (! -f "$vcf_fname.csi" && ! -f "$vcf_fname.tbi" ) {
   echo_exec("bcftools index $vcf_fname");
+}
 
+for(my $chm=$debug?22:1; $chm <= 22; $chm++) {
+  
   my $current_vcf_fname = "$tmp_dname/tmp.$chm.bcf.gz";
-  echo_exec("bcftools view --output-type b --regions $chm $vcf_fname > $current_vcf_fname");
+  echo_exec("bcftools view --output-type b --threads 32 --regions $chm $vcf_fname > $current_vcf_fname");
   echo_exec("bcftools index $current_vcf_fname");
   unless ($no_phasing) {
     if (echo_exec("eagle --geneticMapFile $ENV{ANCESTRY_ROOT}/phasing-reference/genetic_map_hg19_withX.txt.gz --numThreads 24 --vcfRef $ENV{ANCESTRY_ROOT}/phasing-reference/1KG.20ac.all.bcf.gz --vcfTarget $current_vcf_fname --vcfOutFormat b --outPrefix $tmp_dname/tmp.phased.$chm --chrom $chm --noImpMissing")) {
