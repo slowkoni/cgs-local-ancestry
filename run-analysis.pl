@@ -57,6 +57,7 @@ EOF
 }
 
 my ($vcf_fname, $no_phasing, $assume_reference, $fill_missing, $run_script) = ("", 0, 0, 0, 0);
+my $run_chms = join(",",1..22);
 my $debug = 0;
 my %args;
 $args{'--vcf'}              = [ \$vcf_fname,          1 ];
@@ -65,6 +66,7 @@ $args{'--assume-reference'} = [ \$assume_reference,   0 ];
 $args{'--fill-missing'}     = [ \$fill_missing,       0 ];
 $args{'--debug'}            = [ \$debug,              0 ];
 $args{'--run'}              = [ \$run_script,         0 ];
+$args{'--chm'}              = [ \$run_chms,           1 ];
 cmdline_args::get_options(\%args, \@ARGV);
 
 unless ($run_script || defined("$ENV{RFMIX_REFERENCE}")) {
@@ -117,7 +119,7 @@ if (! -f "$vcf_fname.csi" && ! -f "$vcf_fname.tbi" ) {
   echo_exec("bcftools index $vcf_fname");
 }
 
-for(my $chm=$debug?22:1; $chm <= 22; $chm++) {
+for my $chm ( split/,/,$run_chms ) {
   
   my $current_vcf_fname = "$tmp_dname/tmp.$chm.bcf.gz";
   echo_exec("bcftools view --output-type b --threads 32 --regions $chm $vcf_fname > $current_vcf_fname");
