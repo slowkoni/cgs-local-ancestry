@@ -8,12 +8,17 @@ if (!$ARGV[0] || $ARGV[0] eq "help") {
   Script to execute combined phasing (optional) and rfmix v2.X local ancestry
   analysis on any supplied VCF/BCF file.
 
-  Usage: --vcf <input VCF/BCF file> [ --no-phasing ] [ --assume-reference ]   
+  Usage: --vcf <input VCF/BCF file> [ --ref <reference prefix/basename> ] [ --no-phasing ] [ --assume-reference ]   
          [ --fill-missing ]
 
   Performs phasing and local ancestry analysis using 1000 genomes phase 3
   genotypes as reference (built in), reduced to bi-allelic SNPs only which
   have a minimum minor allele count of 20.
+
+  --ref: OPTIONAL. Use this to override the internal 1KG 5 subpopulation reference panel
+         prefix path to reference data VCF or BCF file and corresponding map file.
+         This program will look for <reference prefix>.{vcf,vcf.gz,bcf,bcf.gz} and
+         <reference prefix>.map
 
   --no-phasing: input VCF/BCF is already phased, do not phase input prior to
                 local ancestry analysis
@@ -58,9 +63,13 @@ EOF
 
 my ($vcf_fname, $no_phasing, $assume_reference, $fill_missing, $run_script) = ("", 0, 0, 0, 0);
 my $run_chms = join(",",1..22);
+$ENV{ANCESTRY_ROOT} = "." unless defined $ENV{ANCESTRY_ROOT};
+$ENV{ANCESTRY_ROOT} .= "/" unless $ENV{ANCESTRY_ROOT} =~ m/\/$/; 
+my $ref_basename = "$ENV{ANCESTRY_ROOT}rfmix-reference/1KG.20ac.all";
 my $debug = 0;
 my %args;
 $args{'--vcf'}              = [ \$vcf_fname,          1 ];
+$args{'--ref'}              = [ \$ref_basename,       1 ];
 $args{'--no-phasing'}       = [ \$no_phasing,         0 ];
 $args{'--assume-reference'} = [ \$assume_reference,   0 ];
 $args{'--fill-missing'}     = [ \$fill_missing,       0 ];
@@ -76,10 +85,31 @@ unless ($run_script || defined("$ENV{RFMIX_REFERENCE}")) {
 chdir($ENV{ANCESTRY_ROOT}) if $ENV{ANCESTRY_ROOT};
 #$ENV{PATH} = "$ENV{ANCESTRY_ROOT}/bin:$ENV{PATH}";
 #$ENV{BCFTOOLS_PLUGINS} = "$ENV{ANCESTRY_ROOT}/bin/bcftools_plugins";
- 
+
+my $ref_fname = "$ref_basename";
+if ( -f "$ref_basename.bcf.gz" ) {
+  $ref_fname = "$ref_basename.bcf.gz";
+} elsif ( -f "$ref_basename.bcf" ) {
+  $ref_fname = "$ref_basename.bcf";
+} elsif ( -f "$ref_basename.vcf.gz" ) {
+  echo_exec("bcftools view --output-type b --output-file $ref_basename.bcf.gz --threads 32 -l 1 $ref_basename.vcf.gz");
+  $ref_fname = "$ref_basename.bcf.gz";
+} elsif ( -f "$ref_basename.vcf" ) {
+  echo_exec("bcftools view --output-type b --output-file $ref_basename.bcf.gz --threads 32 -l 1 $ref_basename.vcf");
+  $ref_fname = "$ref_basename.bcf.gz";
+} else {
+  print STDERR "\nERROR: Can't find a VCF or BCF file for reference data with prefix $ref_basename\n";
+  exit(-1);
+}
+
+if ( ! -f "$ref_basename.map" ) {
+  print STDERR "\nERROR: Can't find reference subpopulation mapping file $ref_basename.map\n";
+  exit(-1);
+}
+
 if ($vcf_fname eq "") {
   system($0);
-  print STDERR "ERROR: Specify VCF or BCF input file with --vcf <filename> option\n\n";
+  print STDERR "\nERROR: Specify VCF or BCF input file with --vcf <filename> option\n\n";
   exit(-1);
 }
 my $output_basename = $vcf_fname;
@@ -91,7 +121,6 @@ echo_exec("id");
 echo_exec("rm -f $output_basename.rfmix.msp.tsv");
 echo_exec("rm -f $output_basename.rfmix.fb.tsv");
 echo_exec("rm -f $output_basename.rfmix.Q");
-
 if (! open(F, "<$vcf_fname") ) {
   print STDERR "Can't open input VCF/BCF file \"$vcf_fname\" ($!)";
   exit -1;
@@ -107,7 +136,7 @@ if ($assume_reference) {
     $fill_missing_cmd = "bcftools view --output-type b --threads 32";
   }
   
-  if (echo_exec("/usr/bin/time --format='%e sec\\t%E\\t%M KB' insert-reference-homozygote.py $vcf_fname $ENV{RFMIX_REFERENCE} | $fill_missing_cmd > $tmp_dname/tmp.filled.bcf.gz")) {
+  if (echo_exec("/usr/bin/time --format='%e sec\\t%E\\t%M KB' insert-reference-homozygote.py $vcf_fname $ref_fname | $fill_missing_cmd > $tmp_dname/tmp.filled.bcf.gz")) {
     print STDERR "\nFailed to insert homozygous reference genotypes at ancestry reference sites.\n\n";
     exit -1;
   }
@@ -119,21 +148,25 @@ if (! -f "$vcf_fname.csi" && ! -f "$vcf_fname.tbi" ) {
   echo_exec("bcftools index $vcf_fname");
 }
 
+if ( -f "hapmap-phase2-genetic-map.tsv.gz" && ! -f "hapmap-phase2-henetic-map.tsv" ) {
+  echo_exec("gzip -dc hapmap-phase2-genetic-map.tsv.gz > hapmap-phase2-genetic-map.tsv");
+}
+
 for my $chm ( split/,/,$run_chms ) {
   
   my $current_vcf_fname = "$tmp_dname/tmp.$chm.bcf.gz";
   echo_exec("bcftools view --output-type b --threads 32 --regions $chm $vcf_fname > $current_vcf_fname");
   echo_exec("bcftools index $current_vcf_fname");
   unless ($no_phasing) {
-    if (echo_exec("eagle --geneticMapFile $ENV{ANCESTRY_ROOT}/phasing-reference/genetic_map_hg19_withX.txt.gz --numThreads 24 --vcfRef $ENV{ANCESTRY_ROOT}/phasing-reference/1KG.20ac.all.bcf.gz --vcfTarget $current_vcf_fname --vcfOutFormat b --outPrefix $tmp_dname/tmp.phased.$chm --chrom $chm --noImpMissing")) {
+    if (echo_exec("eagle --geneticMapFile $ENV{ANCESTRY_ROOT}/phasing-reference/genetic_map_hg19_withX.txt.gz --numThreads 24 --vcfRef $ref_fname --vcfTarget $current_vcf_fname --vcfOutFormat b --outPrefix $tmp_dname/tmp.phased.$chm --chrom $chm --noImpMissing")) {
       print STDERR "\nWARNING: Failed to phase chromosome $chm - skipping ancestry analysis for this chromosome.\n";
       next;
     }
     $current_vcf_fname = "$tmp_dname/tmp.phased.$chm.bcf";
     echo_exec("bcftools index $current_vcf_fname");      
   }
-
-  if (echo_exec("rfmix -f $current_vcf_fname -r $ENV{RFMIX_REFERENCE} -m $ENV{RFMIX_REFERENCE_MAP} -g $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv -o $tmp_dname/tmp.rfmix.$chm --chromosome=$chm --crf-spacing=0.1 --rf-window-size=0.1 -G 8 -t 100 --max-missing=0.1 --rf-minimum-snps=20 --random-seed=0xDEADBEEF --crf-weight=3")) {
+  
+  if (echo_exec("rfmix -f $current_vcf_fname -r $ref_fname -m $ref_basename.map -g hapmap-phase2-genetic-map.tsv -o $tmp_dname/tmp.rfmix.$chm --chromosome=$chm --crf-spacing=0.1 --rf-window-size=0.1 -G 8 -t 100 --max-missing=0.1 --rf-minimum-snps=20 --random-seed=0xDEADBEEF --crf-weight=3")) {
     print STDERR "\nWARNING: RFMIX analysis failed on chromosome $chm\n\n";
     next;
   }
