@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w -I .
 use strict;
 use cmdline_args;
+$| = 1;
 
 if (!$ARGV[0] || $ARGV[0] eq "help") {
   print STDERR <<EOF;
