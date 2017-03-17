@@ -1,7 +1,6 @@
 #!/usr/bin/perl -w -I .
 use strict;
 use cmdline_args;
-$| = 1;
 
 if (!$ARGV[0] || $ARGV[0] eq "help") {
   print STDERR <<EOF;
@@ -70,7 +69,7 @@ my $ref_basename = "$ENV{ANCESTRY_ROOT}rfmix-reference/1KG.20ac.all";
 my $debug = 0;
 my %args;
 $args{'--vcf'}              = [ \$vcf_fname,          1 ];
-$args{'--ref'}              = [ \$ref_basename,       1 ];
+$args{'--ref'}              = [ \$ref_basename,       0 ];
 $args{'--no-phasing'}       = [ \$no_phasing,         0 ];
 $args{'--assume-reference'} = [ \$assume_reference,   0 ];
 $args{'--fill-missing'}     = [ \$fill_missing,       0 ];
@@ -167,7 +166,7 @@ for my $chm ( split/,/,$run_chms ) {
     echo_exec("bcftools index $current_vcf_fname");      
   }
   
-  if (echo_exec("rfmix -f $current_vcf_fname -r $ref_fname -m $ref_basename.map -g hapmap-phase2-genetic-map.tsv -o $tmp_dname/tmp.rfmix.$chm --chromosome=$chm --crf-spacing=0.1 --rf-window-size=0.1 -G 8 -t 100 --max-missing=0.1 --rf-minimum-snps=20 --random-seed=0xDEADBEEF --crf-weight=3")) {
+  if (echo_exec("rfmix -f $current_vcf_fname -r $ref_fname -m $ref_basename.map -g $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv -o $tmp_dname/tmp.rfmix.$chm --chromosome=$chm --crf-spacing=0.1 --rf-window-size=0.1 -G 8 -t 100 --max-missing=0.1 --rf-minimum-snps=20 --random-seed=0xDEADBEEF --crf-weight=3")) {
     print STDERR "\nWARNING: RFMIX analysis failed on chromosome $chm\n\n";
     next;
   }
