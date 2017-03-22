@@ -62,14 +62,14 @@ EOF
 }
 
 my ($vcf_fname, $no_phasing, $assume_reference, $fill_missing, $run_script) = ("", 0, 0, 0, 0);
-my $run_chms = join(",",1..22);
+my $run_chms = "";
 $ENV{ANCESTRY_ROOT} = "." unless defined $ENV{ANCESTRY_ROOT};
 $ENV{ANCESTRY_ROOT} .= "/" unless $ENV{ANCESTRY_ROOT} =~ m/\/$/; 
 my $ref_basename = "$ENV{ANCESTRY_ROOT}rfmix-reference/1KG.20ac.all";
 my $debug = 0;
 my %args;
 $args{'--vcf'}              = [ \$vcf_fname,          1 ];
-$args{'--ref'}              = [ \$ref_basename,       0 ];
+$args{'--ref'}              = [ \$ref_basename,       1 ];
 $args{'--no-phasing'}       = [ \$no_phasing,         0 ];
 $args{'--assume-reference'} = [ \$assume_reference,   0 ];
 $args{'--fill-missing'}     = [ \$fill_missing,       0 ];
@@ -148,11 +148,27 @@ if (! -f "$vcf_fname.csi" && ! -f "$vcf_fname.tbi" ) {
   echo_exec("bcftools index $vcf_fname");
 }
 
-if ( -f "hapmap-phase2-genetic-map.tsv.gz" && ! -f "hapmap-phase2-henetic-map.tsv" ) {
-  echo_exec("gzip -dc hapmap-phase2-genetic-map.tsv.gz > hapmap-phase2-genetic-map.tsv");
+if ( -f "$ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv.gz" && ! -f "$ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-henetic-map.tsv" ) {
+  echo_exec("gzip -dc $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv.gz > $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv");
 }
 
-for my $chm ( split/,/,$run_chms ) {
+my @chms = ();
+if ($run_chms == "") {
+  open F, "bcftools view --no-header -G $vcf_fname | cut -f 1 | uniq | sort | uniq | egrep -i -v '[XYM]' |"
+    or die "Can't open pipe to bcftools view to determine chromosomes to analyze ($!)";
+
+  while(<F>) {
+    chomp;
+    my ($chm) = split/\t/;
+    push @chms, $chm;
+  }
+
+  close F;
+} else {
+  @chms = split/,/,$run_chms;
+}
+ 
+for my $chm ( @chms ) {
   
   my $current_vcf_fname = "$tmp_dname/tmp.$chm.bcf.gz";
   echo_exec("bcftools view --output-type b --threads 32 --regions $chm $vcf_fname > $current_vcf_fname");
