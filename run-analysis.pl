@@ -102,6 +102,10 @@ if ( -f "$ref_basename.bcf.gz" ) {
   exit(-1);
 }
 
+if ( ! -f "$ref_fname.csi" && ! -f "$ref_fname.tbi" ) {
+  echo_exec("bcftools index $ref_fname");
+}
+
 if ( ! -f "$ref_basename.map" ) {
   print STDERR "\nERROR: Can't find reference subpopulation mapping file $ref_basename.map\n";
   exit(-1);
@@ -153,7 +157,7 @@ if ( -f "$ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv.gz" &
 }
 
 my @chms = ();
-if ($run_chms == "") {
+if ($run_chms eq "") {
   open F, "bcftools view --no-header -G $vcf_fname | cut -f 1 | uniq | sort | uniq | egrep -i -v '[XYM]' |"
     or die "Can't open pipe to bcftools view to determine chromosomes to analyze ($!)";
 
