@@ -230,7 +230,7 @@ if ($n_succeed == 0) {
   unlink "$output_basename.rfmix.fb.tsv";
   unlink "$output_basename.rfmix.Q";
   
-  print STDERRR "\nERROR: No chromosomes were successfully analyzed.\n\n";
+  print STDERR "\nERROR: No chromosomes were successfully analyzed.\n\n";
   exit -1;
 }
 
