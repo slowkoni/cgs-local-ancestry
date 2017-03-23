@@ -25,7 +25,8 @@ RUN chown -R ancestry:ancestry /home/ancestry
 
 # Get the reference data which we will manage externally
 USER ancestry
-RUN if [ -z "\$RFMIX_REFERENCE_NO_DOWNLOAD" ]; then s3cmd --no-check-md5 get s3://rfmix-reference-data/1KG.hs37d5.reference.tar - | tar -C /home/ancestry -xvf -; fi
+ARG REFERENCE_FILE="s3://rfmix-reference-data/1KG.hs37d5.reference.tar"
+RUN if [ -n "$REFERENCE_FILE" ]; then s3cmd --no-check-md5 get $REFERENCE_FILE - | tar -C /home/ancestry -xvf -; fi
 
 #
 ENTRYPOINT ["/home/ancestry/start.sh"]
