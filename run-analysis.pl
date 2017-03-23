@@ -152,10 +152,29 @@ if (! -f "$vcf_fname.csi" && ! -f "$vcf_fname.tbi" ) {
   echo_exec("bcftools index $vcf_fname");
 }
 
-if ( -f "$ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv.gz" && ! -f "$ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-henetic-map.tsv" ) {
-  echo_exec("gzip -dc $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv.gz > $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv");
+# This is the expected location of the default genetic map (for rfmix) if the standard
+# reference from S3 was downloaded during docker build
+my $rfmix_genetic_map = "$ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv";
+
+# This is a hack for precision FDA platform. If running there, we expect the genetic map will
+# be in /work/reference and that probably the default 1KG reference was not downloaded from S3 
+if ( -f "/work/reference/hapmap-phase2-genetic-map.tsv" ||
+     -f "/work/reference/hapmap-phase2-genetic-map.tsv.gz" ) {
+  $rfmix_genetic_map = "/work/reference/hapmap-phase2-genetic-map.tsv"
 }
 
+# Uncompress the genetic map a gzip file exists but an uncompressed version does not
+# currently rfmix can't read the compressed file directly
+if ( -f "$rfmix_genetic_map.gz" && ! -f "$rfmix_genetic_map" ) {
+  echo_exec("gzip -dc $rfmix_genetic_map.gz > $rfmix_genetic_map");
+}
+
+# If the user did not specify a list of chromosomes to run on the command line,
+# discover the chromosomes to analyze in the query file by listing all the
+# variants in the file and finding all unique chromosome ids.
+#
+# NOTE: We should also scan the reference file, and then only analyze chromosomes found in both
+#       or RFMIX will crash when the intersection of the query and reference is zero SNPs.
 my @chms = ();
 if ($run_chms eq "") {
   open F, "bcftools view --no-header -G $vcf_fname | cut -f 1 | uniq | sort | uniq | egrep -i -v '[XYM]' |"
@@ -169,9 +188,13 @@ if ($run_chms eq "") {
 
   close F;
 } else {
+  # In this case, a comma separated list of chromosomes was given on the command line,
+  # split that up and make an array of those ids.
   @chms = split/,/,$run_chms;
 }
- 
+
+# Iterate over all chromosomes
+my $n_succeed = 0;
 for my $chm ( @chms ) {
   
   my $current_vcf_fname = "$tmp_dname/tmp.$chm.bcf.gz";
@@ -189,12 +212,27 @@ for my $chm ( @chms ) {
   if (echo_exec("rfmix -f $current_vcf_fname -r $ref_fname -m $ref_basename.map -g $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv -o $tmp_dname/tmp.rfmix.$chm --chromosome=$chm --crf-spacing=0.1 --rf-window-size=0.1 -G 8 -t 100 --max-missing=0.1 --rf-minimum-snps=20 --random-seed=0xDEADBEEF --crf-weight=3")) {
     print STDERR "\nWARNING: RFMIX analysis failed on chromosome $chm\n\n";
     next;
+  } else {
+    $n_succeed++;
   }
   echo_exec("cat $tmp_dname/tmp.rfmix.$chm.msp.tsv >> $output_basename.rfmix.msp.tsv");
   echo_exec("cat $tmp_dname/tmp.rfmix.$chm.fb.tsv >> $output_basename.rfmix.fb.tsv");
   echo_exec("cat $tmp_dname/tmp.rfmix.$chm.rfmix.Q >> $output_basename.rfmix.Q");
 }
 echo_exec("rm -rf $tmp_dname");
+
+# If we didn't get any usable results, exit with non-zero status so precision FDA
+# also stops with an error and does not upload empty result files
+if ($n_succeed == 0) {
+  # Remove the empty result files - otherwise, when run as a docker container these
+  # will stay in the shared directory as empty files after the container exits
+  unlink "$output_basename.rfmix.msp.tsv";
+  unlink "$output_basename.rfmix.fb.tsv";
+  unlink "$output_basename.rfmix.Q";
+  
+  print STDERRR "\nERROR: No chromosomes were successfully analyzed.\n\n";
+  exit -1;
+}
 
 sub echo_exec {
   my @args = @_;
