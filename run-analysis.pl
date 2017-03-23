@@ -209,7 +209,7 @@ for my $chm ( @chms ) {
     echo_exec("bcftools index $current_vcf_fname");      
   }
   
-  if (echo_exec("rfmix -f $current_vcf_fname -r $ref_fname -m $ref_basename.map -g $ENV{ANCESTRY_ROOT}/rfmix-reference/hapmap-phase2-genetic-map.tsv -o $tmp_dname/tmp.rfmix.$chm --chromosome=$chm --crf-spacing=0.1 --rf-window-size=0.1 -G 8 -t 100 --max-missing=0.1 --rf-minimum-snps=20 --random-seed=0xDEADBEEF --crf-weight=3")) {
+  if (echo_exec("rfmix -f $current_vcf_fname -r $ref_fname -m $ref_basename.map -g $rfmix_genetic_map -o $tmp_dname/tmp.rfmix.$chm --chromosome=$chm --crf-spacing=0.1 --rf-window-size=0.1 -G 8 -t 100 --max-missing=0.1 --rf-minimum-snps=20 --random-seed=0xDEADBEEF --crf-weight=3")) {
     print STDERR "\nWARNING: RFMIX analysis failed on chromosome $chm\n\n";
     next;
   } else {
