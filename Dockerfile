@@ -28,6 +28,9 @@ USER ancestry
 ARG REFERENCE_FILE="s3://rfmix-reference-data/1KG.hs37d5.reference.tar"
 RUN if [ -n "$REFERENCE_FILE" ]; then s3cmd --no-check-md5 get $REFERENCE_FILE - | tar -C /home/ancestry -xvf -; fi
 
+# Remove this hack when the reference panel comes with named maps
+# and there is an option to select between them at docker run
+RUN cp /home/ancestry/rfmix-reference/1KG-K5-reference-sample-map.tsv /home/ancestry/rfmix-reference/1KG.20ac.all.map
 #
 ENTRYPOINT ["/home/ancestry/start.sh"]
 
